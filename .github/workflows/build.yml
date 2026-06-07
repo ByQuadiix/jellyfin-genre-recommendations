@@ -73,19 +73,23 @@ jobs:
         run: |
           VERSION="${{ env.VERSION }}"
           ZIP_FILE="./dist/jellyfin-plugin-genrerecommendations_${VERSION}.zip"
+          TAG="v${VERSION}"
 
-          gh release create "v${VERSION}" \
+          # Altes Release löschen falls es existiert
+          gh release delete "${TAG}" -y 2>/dev/null || true
+
+          # Neues Release erstellen
+          gh release create "${TAG}" \
             --title "Genre Recommendations v${VERSION}" \
-            --clobber \
             --notes "## Installation
 
-          1. ZIP-Datei herunterladen
-          2. ZIP in den Jellyfin Plugin-Ordner entpacken:
-             - Linux: \`~/.local/share/jellyfin/plugins/\`
-             - Windows: \`%APPDATA%\\jellyfin\\plugins\\\`
-             - Docker: \`/config/plugins/\`
-          3. Jellyfin neu starten
-          4. Plugin unter **Dashboard → Plugins → Genre Recommendations** konfigurieren" \
+1. ZIP-Datei herunterladen
+2. ZIP in den Jellyfin Plugin-Ordner entpacken:
+   - Linux: \`~/.local/share/jellyfin/plugins/\`
+   - Windows: \`%APPDATA%\\jellyfin\\plugins\\\`
+   - Docker: \`/config/plugins/\`
+3. Jellyfin neu starten
+4. Plugin unter **Dashboard → Plugins → Genre Recommendations** konfigurieren" \
             "${ZIP_FILE}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
