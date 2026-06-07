@@ -1,6 +1,7 @@
 using Jellyfin.Data.Enums;
 using Jellyfin.Plugin.GenreRecommendations.Models;
 using Jellyfin.Plugin.GenreRecommendations.Services;
+using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Querying;
 using Microsoft.AspNetCore.Authorization;
