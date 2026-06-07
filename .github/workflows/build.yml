@@ -76,6 +76,7 @@ jobs:
 
           gh release create "v${VERSION}" \
             --title "Genre Recommendations v${VERSION}" \
+            --clobber \
             --notes "## Installation
 
           1. ZIP-Datei herunterladen
