@@ -93,3 +93,45 @@ jobs:
 
           # ZIP als Asset hochladen
           gh release upload "${TAG}" "${ZIP_FILE}" --clobber
+
+      - name: Update Manifest
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          export CHECKSUM=$(md5sum "./dist/jellyfin-plugin-genrerecommendations_${{ env.VERSION }}.zip" | awk '{print $1}')
+          export TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          export SOURCE_URL="https://github.com/${REPO}/releases/download/${TAG}/jellyfin-plugin-genrerecommendations_${{ env.VERSION }}.zip"
+          export MANIFEST_VERSION=$(echo "${{ env.VERSION }}" | awk -F. 'NF==3{print $0".0"} NF!=3{print $0}')
+          python3 << 'PYEOF'
+          import json, os
+          version = os.environ["MANIFEST_VERSION"]
+          checksum = os.environ["CHECKSUM"]
+          source_url = os.environ["SOURCE_URL"]
+          timestamp = os.environ["TIMESTAMP"]
+          with open("manifest.json", "r") as f:
+              manifest = json.load(f)
+          new_version = {
+              "version": version,
+              "changelog": "",
+              "targetAbi": "10.9.0.0",
+              "sourceUrl": source_url,
+              "checksum": checksum,
+              "timestamp": timestamp,
+          }
+          manifest[0]["versions"] = [v for v in manifest[0]["versions"] if v["version"] != version]
+          manifest[0]["versions"].insert(0, new_version)
+          with open("manifest.json", "w") as f:
+              json.dump(manifest, f, indent=2)
+              f.write("\n")
+          PYEOF
+
+      - name: Commit Manifest
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add manifest.json
+          git diff --cached --quiet || git commit -m "chore: update manifest for ${{ github.ref_name }}"
+          git push origin HEAD:master
