@@ -1,4 +1,5 @@
 using Jellyfin.Plugin.GenreRecommendations.Models;
+using Jellyfin.Data.Enums;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Entities;

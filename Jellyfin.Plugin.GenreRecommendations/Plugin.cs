@@ -32,8 +32,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
             new PluginPageInfo
             {
                 Name = Name,
-                EmbeddedResourcePath = $"{prefix}.Configuration.configPage.html",
-                IsMainConfigPage = true
+                EmbeddedResourcePath = $"{prefix}.Configuration.configPage.html"
             },
             new PluginPageInfo
             {

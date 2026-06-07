@@ -1,5 +1,5 @@
 using Jellyfin.Plugin.GenreRecommendations.Services;
-using MediaBrowser.Common.Plugins;
+using MediaBrowser.Common;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Jellyfin.Plugin.GenreRecommendations;
