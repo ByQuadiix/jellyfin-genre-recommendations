@@ -1,0 +1,89 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*.*.*'
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: Build Plugin
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore Jellyfin.Plugin.GenreRecommendations/Jellyfin.Plugin.GenreRecommendations.csproj
+
+      - name: Build
+        run: |
+          dotnet build Jellyfin.Plugin.GenreRecommendations/Jellyfin.Plugin.GenreRecommendations.csproj \
+            --configuration Release \
+            --no-restore \
+            --output ./build-output
+
+      - name: Package as ZIP
+        run: |
+          VERSION="${{ github.ref_name }}"
+          # Bei normalem Push: Version aus csproj lesen
+          if [[ "$VERSION" != v* ]]; then
+            VERSION=$(grep -oP '(?<=<Version>)[^<]+' Jellyfin.Plugin.GenreRecommendations/Jellyfin.Plugin.GenreRecommendations.csproj | head -1)
+          else
+            VERSION="${VERSION#v}"
+          fi
+
+          mkdir -p ./dist
+          ZIP_NAME="jellyfin-plugin-genrerecommendations_${VERSION}.zip"
+
+          cd build-output
+          zip -j "../dist/${ZIP_NAME}" Jellyfin.Plugin.GenreRecommendations.dll
+          cd ..
+
+          echo "ZIP_NAME=${ZIP_NAME}" >> $GITHUB_ENV
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+
+          echo "Paket erstellt: dist/${ZIP_NAME}"
+          ls -lh dist/
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: plugin-zip
+          path: dist/*.zip
+          retention-days: 30
+
+      # Nur bei einem versionierten Tag ein GitHub Release erstellen
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Genre Recommendations v${{ env.VERSION }}"
+          body: |
+            ## Jellyfin Genre Recommendations Plugin v${{ env.VERSION }}
+
+            ### Installation
+            1. ZIP-Datei herunterladen
+            2. ZIP in den Jellyfin Plugin-Ordner entpacken:
+               - Linux: `~/.local/share/jellyfin/plugins/`
+               - Windows: `%APPDATA%\jellyfin\plugins\`
+               - Docker: `/config/plugins/`
+            3. Jellyfin neu starten
+            4. Plugin unter **Dashboard → Plugins → Genre Recommendations** konfigurieren
+
+            ### Neue Features / Änderungen
+            *Siehe Commit-History*
+          files: dist/*.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

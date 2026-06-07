@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <title>Genre Empfehlungen</title>
+</head>
+<body>
+<div data-role="page" class="page libraryPage">
+    <div data-role="content">
+        <div class="content-primary">
+
+            <div class="verticalSection">
+                <div class="sectionTitleContainer flex align-items-center">
+                    <h2 class="sectionTitle">Genre Empfehlungen – Einstellungen</h2>
+                </div>
+                <p class="fieldDescription" style="margin-bottom:1.5em;">
+                    Dieses Plugin zeigt wöchentlich wechselnde Genre-Reihen auf der Startseite.
+                    Die Empfehlungen werden jeden Montag um 03:00 Uhr automatisch neu gewählt.
+                </p>
+            </div>
+
+            <div class="verticalSection">
+                <h3 class="sectionTitle">Quell-Bibliothek</h3>
+
+                <div class="inputContainer">
+                    <label class="inputLabel inputLabelUnfocused" for="selectSourceLibrary">
+                        Bibliothek für Empfehlungen
+                    </label>
+                    <select id="selectSourceLibrary" is="emby-select" class="emby-select-withcolor emby-select">
+                        <option value="">-- Bibliothek wählen --</option>
+                    </select>
+                    <div class="fieldDescription">
+                        Aus dieser Bibliothek werden die Serien und Filme für die Genre-Reihen ausgewählt.
+                    </div>
+                </div>
+
+                <div class="inputContainer">
+                    <label class="inputLabel inputLabelUnfocused" for="inputItemsPerGenre">
+                        Anzahl Items pro Genre-Reihe
+                    </label>
+                    <input id="inputItemsPerGenre" type="number" is="emby-input" min="1" max="20" value="8" />
+                    <div class="fieldDescription">
+                        Wie viele Titel pro Genre-Reihe auf der Startseite angezeigt werden (1–20).
+                    </div>
+                </div>
+            </div>
+
+            <div class="verticalSection">
+                <h3 class="sectionTitle">Status</h3>
+                <div class="inputContainer">
+                    <label class="inputLabel">Letzte Aktualisierung</label>
+                    <div id="lastRefreshTime" class="fieldDescription">–</div>
+                </div>
+                <div class="inputContainer">
+                    <label class="inputLabel">Genre-Reihen im Cache</label>
+                    <div id="cachedGenreCount" class="fieldDescription">–</div>
+                </div>
+            </div>
+
+            <div class="verticalSection" style="display:flex;gap:1em;flex-wrap:wrap;margin-top:1em;">
+                <button is="emby-button" type="button" id="btnSave" class="raised button-submit block">
+                    <span>Einstellungen speichern</span>
+                </button>
+                <button is="emby-button" type="button" id="btnRefresh" class="raised block">
+                    <span>Jetzt aktualisieren</span>
+                </button>
+            </div>
+
+            <div id="statusMessage" style="margin-top:1em;padding:0.75em 1em;border-radius:4px;display:none;"></div>
+
+        </div>
+    </div>
+</div>
+
+<script type="text/javascript">
+(function () {
+    var PLUGIN_ID = 'a3b1c5d2-e4f6-4801-b9c7-3d2e8f1a0b5c';
+
+    var elLibrary = document.getElementById('selectSourceLibrary');
+    var elItems   = document.getElementById('inputItemsPerGenre');
+    var elStatus  = document.getElementById('statusMessage');
+
+    document.getElementById('btnSave').addEventListener('click', saveConfig);
+    document.getElementById('btnRefresh').addEventListener('click', triggerRefresh);
+
+    function showStatus(msg, type) {
+        var colors = { success: '#4caf50', error: '#f44336', info: '#2196f3' };
+        elStatus.textContent = msg;
+        elStatus.style.background = (type === 'success' ? '#1b3a1b' : type === 'error' ? '#3a1b1b' : '#1b2a3a');
+        elStatus.style.color = colors[type] || '#fff';
+        elStatus.style.display = 'block';
+        setTimeout(function () { elStatus.style.display = 'none'; }, 5000);
+    }
+
+    async function loadLibraries() {
+        try {
+            var libs = await ApiClient.getJSON(ApiClient.getUrl('GenreRecommendations/Libraries'));
+            libs.forEach(function (lib) {
+                var opt = document.createElement('option');
+                opt.value = lib.id;
+                opt.textContent = lib.name;
+                elLibrary.appendChild(opt);
+            });
+        } catch (e) {
+            showStatus('Fehler beim Laden der Bibliotheken: ' + e.message, 'error');
+        }
+    }
+
+    async function loadConfig() {
+        try {
+            var cfg = await ApiClient.getPluginConfiguration(PLUGIN_ID);
+            if (cfg.SourceLibraryId) elLibrary.value = cfg.SourceLibraryId;
+            if (cfg.ItemsPerGenre)   elItems.value   = cfg.ItemsPerGenre;
+
+            var lastRefreshEl = document.getElementById('lastRefreshTime');
+            if (cfg.LastRefresh && cfg.LastRefresh !== '0001-01-01T00:00:00Z') {
+                lastRefreshEl.textContent = new Date(cfg.LastRefresh).toLocaleString('de-DE');
+            } else {
+                lastRefreshEl.textContent = 'Noch nicht aktualisiert';
+            }
+        } catch (e) {
+            showStatus('Fehler beim Laden der Konfiguration: ' + e.message, 'error');
+        }
+
+        try {
+            var sections = await ApiClient.getJSON(ApiClient.getUrl('GenreRecommendations/Sections'));
+            var count = (sections && sections.genres) ? sections.genres.length : 0;
+            document.getElementById('cachedGenreCount').textContent = count + ' Genre-Reihen';
+        } catch (e) {
+            document.getElementById('cachedGenreCount').textContent = 'Keine Daten';
+        }
+    }
+
+    async function saveConfig() {
+        var libId = elLibrary.value;
+        if (!libId) { showStatus('Bitte eine Bibliothek auswählen.', 'error'); return; }
+
+        var items = parseInt(elItems.value, 10);
+        if (isNaN(items) || items < 1 || items > 20) { showStatus('Anzahl muss zwischen 1 und 20 liegen.', 'error'); return; }
+
+        try {
+            var cfg = await ApiClient.getPluginConfiguration(PLUGIN_ID);
+            cfg.SourceLibraryId   = libId;
+            cfg.SourceLibraryName = elLibrary.options[elLibrary.selectedIndex].textContent;
+            cfg.ItemsPerGenre     = items;
+            await ApiClient.updatePluginConfiguration(PLUGIN_ID, cfg);
+            showStatus('Einstellungen gespeichert!', 'success');
+        } catch (e) {
+            showStatus('Fehler beim Speichern: ' + e.message, 'error');
+        }
+    }
+
+    async function triggerRefresh() {
+        var libId = elLibrary.value;
+        if (!libId) { showStatus('Bitte zuerst eine Bibliothek speichern.', 'error'); return; }
+
+        showStatus('Aktualisierung läuft – bitte warten…', 'info');
+        try {
+            await ApiClient.ajax({ url: ApiClient.getUrl('GenreRecommendations/Refresh'), type: 'POST' });
+            showStatus('Empfehlungen wurden erfolgreich aktualisiert!', 'success');
+            loadConfig();
+        } catch (e) {
+            showStatus('Fehler bei der Aktualisierung: ' + e.message, 'error');
+        }
+    }
+
+    // Initialisierung
+    Promise.all([loadLibraries(), loadConfig()]);
+})();
+</script>
+</body>
+</html>

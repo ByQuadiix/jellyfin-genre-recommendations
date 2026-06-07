@@ -1,0 +1,97 @@
+======================================================
+  Jellyfin Genre Recommendations Plugin
+  Installations- und Build-Anleitung
+======================================================
+
+--- GITHUB REPOSITORY EINRICHTEN ---
+
+1. Neues GitHub Repository erstellen (z.B. "jellyfin-genre-recommendations")
+
+2. Diesen Projektordner als Git-Repository initialisieren:
+   > git init
+   > git add .
+   > git commit -m "Initial commit"
+   > git remote add origin https://github.com/DEIN-NAME/jellyfin-genre-recommendations.git
+   > git push -u origin main
+
+3. GitHub Actions läuft automatisch bei jedem Push auf "main"
+   → Build-Ergebnis unter: GitHub Repo → Actions → Build & Release
+
+
+--- RELEASE ERSTELLEN (automatischer Build + Download-ZIP) ---
+
+Einfach einen Git-Tag mit "v" Prefix erstellen:
+
+   > git tag v1.0.0
+   > git push origin v1.0.0
+
+GitHub Actions baut dann automatisch:
+✓ Plugin kompilieren
+✓ ZIP-Datei erstellen: jellyfin-plugin-genrerecommendations_1.0.0.zip
+✓ GitHub Release mit ZIP als Download-Anhang
+
+Download-Link: https://github.com/DEIN-NAME/jellyfin-genre-recommendations/releases
+
+
+--- PLUGIN IN JELLYFIN INSTALLIEREN ---
+
+1. ZIP-Datei aus dem GitHub Release herunterladen
+
+2. ZIP entpacken in den Jellyfin Plugin-Ordner:
+   - Linux:   ~/.local/share/jellyfin/plugins/
+   - Windows: %APPDATA%\jellyfin\plugins\
+   - Docker:  /config/plugins/
+
+3. Jellyfin neu starten (Dienst-Neustart oder Server-Neustart)
+
+4. Plugin konfigurieren:
+   Dashboard → Plugins → Genre Recommendations
+   → Quell-Bibliothek auswählen (z.B. "Anime")
+   → "Einstellungen speichern"
+   → "Jetzt aktualisieren" klicken
+
+5. Startseite aufrufen – Genre-Reihen erscheinen vor "Weiterschauen"
+
+
+--- LOKAL BAUEN (ohne GitHub) ---
+
+Voraussetzung: .NET 8 SDK installiert (https://dotnet.microsoft.com/download)
+
+   > cd Jellyfin.Plugin.GenreRecommendations
+   > dotnet restore
+   > dotnet build --configuration Release --output ../build-output
+
+DLL liegt dann unter: build-output\Jellyfin.Plugin.GenreRecommendations.dll
+Diese DLL in den Jellyfin Plugin-Ordner kopieren und Jellyfin neu starten.
+
+
+--- DATEISTRUKTUR ---
+
+.github/
+  workflows/
+    build.yml               <- GitHub Actions (automatischer Build + Release)
+
+Jellyfin.Plugin.GenreRecommendations/
+  Jellyfin.Plugin.GenreRecommendations.csproj
+  Plugin.cs                 <- Plugin-Registrierung
+  ServiceRegistrator.cs     <- Dependency Injection
+  Configuration/
+    PluginConfiguration.cs  <- Konfigurationsmodell
+    configPage.html         <- Admin-Einstellungsseite
+  ScheduledTasks/
+    RefreshRecommendationsTask.cs  <- Wöchentlicher Task
+  Api/
+    GenreRecommendationsController.cs  <- REST API
+  Models/
+    RecommendationItem.cs
+    RecommendationResponse.cs
+  Services/
+    RecommendationService.cs  <- Empfehlungslogik + Genre-Mapping
+    RecommendationStore.cs    <- JSON-Cache
+  Web/
+    genrerecommendations.js   <- Startseiten-Injektion
+
+README.md
+.gitignore
+INSTALLATION.txt            <- Diese Datei
+======================================================
