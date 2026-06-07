@@ -38,12 +38,9 @@ jobs:
         run: |
           REF_NAME="${{ github.ref_name }}"
 
-          # Version extrahieren: bei Tags "v1.0.0" -> "1.0.0", sonst aus csproj
           if [[ "$REF_NAME" =~ ^v[0-9] ]]; then
-            # Tag-basiertes Release (z.B. v1.0.0)
             VERSION="${REF_NAME#v}"
           else
-            # Branch-basiertes Build - Version aus .csproj lesen
             VERSION=$(grep -oP '(?<=<Version>)[^<]+' Jellyfin.Plugin.GenreRecommendations/Jellyfin.Plugin.GenreRecommendations.csproj | head -1)
           fi
 
@@ -67,11 +64,10 @@ jobs:
           path: dist/*.zip
           retention-days: 30
 
-      # Nur bei einem versionierten Tag ein GitHub Release erstellen
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           RELEASE_NOTES: |
             ## Installation
 
@@ -90,8 +86,10 @@ jobs:
           # Altes Release löschen falls es existiert
           gh release delete "${TAG}" -y 2>/dev/null || true
 
-          # Neues Release erstellen
+          # Release erstellen
           gh release create "${TAG}" \
             --title "Genre Recommendations v${VERSION}" \
-            --notes "$RELEASE_NOTES" \
-            "${ZIP_FILE}"
+            --notes "$RELEASE_NOTES"
+
+          # ZIP als Asset hochladen
+          gh release upload "${TAG}" "${ZIP_FILE}" --clobber
