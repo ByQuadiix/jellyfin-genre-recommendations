@@ -1,6 +1,8 @@
+using Jellyfin.Data.Enums;
 using Jellyfin.Plugin.GenreRecommendations.Models;
 using Jellyfin.Plugin.GenreRecommendations.Services;
 using MediaBrowser.Controller.Library;
+using MediaBrowser.Model.Querying;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -40,8 +42,11 @@ public class GenreRecommendationsController : ControllerBase
     [Authorize(Policy = "DefaultAuthorization")]
     public ActionResult<IEnumerable<object>> GetLibraries()
     {
-        var folders = _libraryManager.GetVirtualFolders()
-            .Select(f => new { id = f.ItemId, name = f.Name })
+        var folders = _libraryManager.GetItemList(new InternalItemsQuery
+            {
+                IncludeItemTypes = new[] { BaseItemKind.CollectionFolder }
+            })
+            .Select(f => new { id = f.Id.ToString("N"), name = f.Name })
             .ToList();
 
         return Ok(folders);
